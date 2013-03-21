@@ -1,0 +1,27 @@
+from scrapy.contrib.spiders import CrawlSpider, Rule
+from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
+from scrapy.selector import HtmlXPathSelector
+
+from crawling.items import PrereqItem
+
+class PrereqSpider(CrawlSpider):
+    name = "prereq"
+    allowed_domains = ["cs.sfu.ca"]
+    start_urls = [
+           "https://portal.cs.sfu.ca/outlines/1134/"
+    ]
+    rules = (
+        Rule(SgmlLinkExtractor(allow=('portal\/outlines\/1134'), deny='pdf'), callback='parse_item', follow=True),
+    )
+
+    def parse_item(self, response):
+        # print response.url
+        hxs = HtmlXPathSelector(response)
+        item = PrereqItem()
+        title = hxs.select('//h1[@id="PageTitle"][1]')
+        info = title.select('following-sibling::div[1]')
+        subject = info.select('div[2]/p[1]/text()')
+        number = info.select('div[2]/p[2]/text()')
+        item['courseID'] = subject.extract()[0] + number.extract()[0]
+        item['prereq'] = title.select('following-sibling::p[3]/text()').extract()
+        return item
